@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lottery Scheduling Simulator</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            text-align: center;
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #74ebd5, #acb6e5);
+            overflow-y: auto;
+            min-height: 100vh;
+        }
+        h2 {
+            color: #fff;
+            margin-top: 20px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+        .container {
+            background: white;
+            width: 60%;
+            margin: 20px auto;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0px 4px 20px rgba(0, 0, 0, 0.2);
+            transition: transform 0.3s;
+        }
+        .container:hover {
+            transform: scale(1.02);
+        }
+        input, button {
+            margin: 10px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+            transition: 0.3s;
+        }
+        button {
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+            transform: scale(1.05);
+        }
+        table {
+            width: 80%;
+            margin: 20px auto;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: center;
+        }
+        th {
+            background-color: #007BFF;
+            color: white;
+        }
+        .highlight {
+            background-color: #FFC107 !important;
+            color: #333;
+            animation: pulse 1s infinite alternate;
+        }
+        @keyframes pulse {
+            from { transform: scale(1); }
+            to { transform: scale(1.1); }
+        }
+        canvas {
+            max-width: 400px;
+            margin: 20px auto;
+            display: block;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: #ddd;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 10px auto;
+        }
+        .progress {
+            height: 100%;
+            width: 0;
+            background: #28a745;
+            transition: width 0.5s ease-in-out;
+        }
+    </style>
+</head>
+<body>
+    <h2>Lottery Scheduling Simulator</h2>
+    <div class="container">
+        <input type="text" id="processName" placeholder="Process Name">
+        <input type="number" id="tickets" placeholder="Tickets" min="1">
+        <button onclick="addProcess()">Add Process</button>
+        <p id="error" style="color: red; display: none;">Error: Invalid input or duplicate process name!</p>
+    
+        <table>
+            <thead>
+                <tr>
+                    <th>Process</th>
+                    <th>Tickets</th>
+                </tr>
+            </thead>
+            <tbody id="processList"></tbody>
+        </table>
+    
+        <canvas id="ticketChart"></canvas>
+    
+        <button onclick="runLottery()">Run Lottery Scheduling</button>
+        <h3>Execution Order:</h3>
+        <div class="progress-bar">
+            <div class="progress" id="progressBar"></div>
+        </div>
+        <ul id="executionOrder"></ul>
+    </div>
+    <audio id="clickSound" src="https://www.fesliyanstudios.com/play-mp3/387"></audio>
+    <script>
+        let processes = [];
+        let ticketChart;
+        const clickSound = document.getElementById("clickSound");
+
+        function addProcess() {
+            clickSound.play();
+            const name = document.getElementById("processName").value.trim();
+            const tickets = parseInt(document.getElementById("tickets").value);
+            const errorMsg = document.getElementById("error");
+            
+            if (!name || isNaN(tickets) || tickets <= 0 || processes.some(p => p.name === name)) {
+                errorMsg.style.display = "block";
+                return;
+            }
+            errorMsg.style.display = "none";
+            
+            processes.push({ name, tickets });
+            updateTable();
+            updateChart();
+        }
+
+        function updateTable() {
+            const tableBody = document.getElementById("processList");
+            tableBody.innerHTML = "";
+            processes.forEach(proc => {
+                let row = `<tr><td>${proc.name}</td><td>${proc.tickets}</td></tr>`;
+                tableBody.innerHTML += row;
+            });
+        }
+
+        function updateChart() {
+            const ctx = document.getElementById("ticketChart").getContext("2d");
+            if (ticketChart) {
+                ticketChart.destroy();
+            }
+            ticketChart = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: processes.map(p => p.name),
+                    datasets: [{
+                        data: processes.map(p => p.tickets),
+                        backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4CAF50', '#8E44AD'],
+                    }]
+                },
+                options: { responsive: true }
+            });
+        }
+
+        async function runLottery() {
+            if (processes.length === 0) return;
+            let ticketPool = [];
+            processes.forEach(proc => {
+                for (let i = 0; i < proc.tickets; i++) {
+                    ticketPool.push(proc.name);
+                }
+            });
+            
+            let executionOrder = [];
+            const executionList = document.getElementById("executionOrder");
+            executionList.innerHTML = "";
+            const progressBar = document.getElementById("progressBar");
+            progressBar.style.width = "0%";
+            
+            while (ticketPool.length > 0) {
+                let randomIndex = Math.floor(Math.random() * ticketPool.length);
+                let selectedProcess = ticketPool[randomIndex];
+                executionOrder.push(selectedProcess);
+                ticketPool = ticketPool.filter(ticket => ticket !== selectedProcess);
+                
+                let listItem = document.createElement("li");
+                listItem.textContent = selectedProcess;
+                executionList.appendChild(listItem);
+                listItem.classList.add("highlight");
+                clickSound.play();
+                progressBar.style.width = `${(executionOrder.length / processes.length) * 100}%`;
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                listItem.classList.remove("highlight");
+            }
+        }
+    </script>
+</body>
+</html>
